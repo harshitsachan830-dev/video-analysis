@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+python-dotenv
+youtube-transcript-api
+yt-dlp
+sentence-transformers
+faiss-cpu
+google-genai
+numpy
+httpx
+opencv-python-headless

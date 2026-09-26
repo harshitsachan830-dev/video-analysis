@@ -1,0 +1,149 @@
+[
+  {
+    "session_id": "session_1",
+    "video_id": "SGO6zXdzc4U",
+    "start": "2026-06-22T17:32:42.703735Z",
+    "end": null,
+    "features_used": []
+  },
+  {
+    "session_id": "session_2",
+    "video_id": "SGO6zXdzc4U",
+    "start": "2026-06-22T17:35:12.001734Z",
+    "end": null,
+    "features_used": []
+  },
+  {
+    "session_id": "session_3",
+    "video_id": "YgizUxmBFK8",
+    "start": "2026-06-22T17:36:02.213344Z",
+    "end": null,
+    "features_used": []
+  },
+  {
+    "session_id": "session_4",
+    "video_id": "YgizUxmBFK8",
+    "start": "2026-06-22T17:46:42.659094Z",
+    "end": null,
+    "features_used": []
+  },
+  {
+    "session_id": "session_5",
+    "video_id": "SGO6zXdzc4U",
+    "start": "2026-06-22T18:11:43.970010Z",
+    "end": null,
+    "features_used": []
+  },
+  {
+    "session_id": "session_6",
+    "video_id": "3LJ-yWBQBGs",
+    "start": "2026-06-22T18:12:04.018847Z",
+    "end": null,
+    "features_used": []
+  },
+  {
+    "session_id": "session_7",
+    "video_id": "SGO6zXdzc4U",
+    "start": "2026-06-22T18:15:17.297944Z",
+    "end": null,
+    "features_used": []
+  },
+  {
+    "session_id": "session_8",
+    "video_id": "__fmDj0ZJ1Q",
+    "start": "2026-06-22T18:18:04.170989Z",
+    "end": null,
+    "features_used": []
+  },
+  {
+    "session_id": "session_9",
+    "video_id": "__fmDj0ZJ1Q",
+    "start": "2026-06-22T18:23:15.340681Z",
+    "end": null,
+    "features_used": []
+  },
+  {
+    "session_id": "session_10",
+    "video_id": "__fmDj0ZJ1Q",
+    "start": "2026-06-22T18:26:10.286493Z",
+    "end": null,
+    "features_used": []
+  },
+  {
+    "session_id": "session_11",
+    "video_id": "SGO6zXdzc4U",
+    "start": "2026-06-26T10:59:03.022796Z",
+    "end": null,
+    "features_used": []
+  },
+  {
+    "session_id": "session_12",
+    "video_id": "__fmDj0ZJ1Q",
+    "start": "2026-06-26T11:14:50.185737Z",
+    "end": null,
+    "features_used": []
+  },
+  {
+    "session_id": "session_13",
+    "video_id": "__fmDj0ZJ1Q",
+    "start": "2026-06-26T11:16:53.082505Z",
+    "end": null,
+    "features_used": []
+  },
+  {
+    "session_id": "session_14",
+    "video_id": "__fmDj0ZJ1Q",
+    "start": "2026-07-03T17:19:54.486472Z",
+    "end": null,
+    "features_used": []
+  },
+  {
+    "session_id": "session_15",
+    "video_id": "Pv0iVoSZzN8",
+    "start": "2026-07-06T05:41:49.602407Z",
+    "end": null,
+    "features_used": []
+  },
+  {
+    "session_id": "session_16",
+    "video_id": "6gQR8TaFXMw",
+    "start": "2026-08-16T16:44:48.734884Z",
+    "end": null,
+    "features_used": []
+  },
+  {
+    "session_id": "session_17",
+    "video_id": "6gQR8TaFXMw",
+    "start": "2026-08-16T16:45:16.682010Z",
+    "end": null,
+    "features_used": []
+  },
+  {
+    "session_id": "session_18",
+    "video_id": "6gQR8TaFXMw",
+    "start": "2026-08-16T16:46:21.686941Z",
+    "end": null,
+    "features_used": []
+  },
+  {
+    "session_id": "session_19",
+    "video_id": "6gQR8TaFXMw",
+    "start": "2026-08-16T16:46:22.592353Z",
+    "end": null,
+    "features_used": []
+  },
+  {
+    "session_id": "session_20",
+    "video_id": "Af6i6ChAVTw",
+    "start": "2026-08-17T05:13:09.175550Z",
+    "end": null,
+    "features_used": []
+  },
+  {
+    "session_id": "session_21",
+    "video_id": "Af6i6ChAVTw",
+    "start": "2026-08-17T11:10:29.143853Z",
+    "end": null,
+    "features_used": []
+  }
+]

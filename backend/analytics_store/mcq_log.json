@@ -1,0 +1,92 @@
+[
+  {
+    "video_id": "Pv0iVoSZzN8",
+    "question": "What was Darcy's ultimate goal in the challenge?",
+    "selected": "A",
+    "correct_answer": "C",
+    "is_correct": false,
+    "topic_hint": "Darcy's main objective was to stop his $250,000 from exploding by completing all challenges and pressing a button before the 10-minute timer hit zero.",
+    "timestamp": "2026-07-06T05:43:05.317181Z"
+  },
+  {
+    "video_id": "Pv0iVoSZzN8",
+    "question": "What challenge did Darcy face immediately after escaping the straight jacket on the first floor?",
+    "selected": "C",
+    "correct_answer": "B",
+    "is_correct": false,
+    "topic_hint": "After escaping the straight jacket, Darcy had to use a lock pick found on the floor to open a metal cage.",
+    "timestamp": "2026-07-06T05:43:06.848952Z"
+  },
+  {
+    "video_id": "Pv0iVoSZzN8",
+    "question": "What unique filming technique was emphasized throughout the video to prove its authenticity?",
+    "selected": "C",
+    "correct_answer": "C",
+    "is_correct": true,
+    "topic_hint": "The video emphasized it was 100% real-time, exactly 10 minutes long, with no cuts to show everything as it happened.",
+    "timestamp": "2026-07-06T05:43:08.014701Z"
+  },
+  {
+    "video_id": "Pv0iVoSZzN8",
+    "question": "What was the primary obstacle Darcy encountered on floor number four?",
+    "selected": "A",
+    "correct_answer": "B",
+    "is_correct": false,
+    "topic_hint": "Floor number four was covered in glue, and Darcy had to use monkey bars to avoid touching the ground.",
+    "timestamp": "2026-07-06T05:43:09.264911Z"
+  },
+  {
+    "video_id": "Pv0iVoSZzN8",
+    "question": "What was Darcy's final, multi-step task on the last level to save his money?",
+    "selected": "B",
+    "correct_answer": "C",
+    "is_correct": false,
+    "topic_hint": "On the last level, Darcy had to open four underwater valves to drain the room, then open the final door and press the button to save his money.",
+    "timestamp": "2026-07-06T05:43:11.131660Z"
+  },
+  {
+    "video_id": "Af6i6ChAVTw",
+    "question": "After the initial chaos and destruction on Day 2, which contestant took the initiative to start cleaning the house?",
+    "selected": "B",
+    "correct_answer": "B",
+    "is_correct": true,
+    "topic_hint": "The narrator states, \"I truly do not like sleeping or living in a dirty home. I'll be the one to clean all the aftermath of the chaos that happened earlier today. But Kevin wasn't the only one to clean...\"",
+    "timestamp": "2026-08-17T05:16:37.797569Z"
+  },
+  {
+    "video_id": "Af6i6ChAVTw",
+    "question": "What specific feature of the mansion is highlighted as having seven of them?",
+    "selected": "D",
+    "correct_answer": "C",
+    "is_correct": false,
+    "topic_hint": "The narrator explicitly states the mansion has \"SEVEN bedrooms!\" after listing multiple other counts.",
+    "timestamp": "2026-08-17T11:12:17.293081Z"
+  },
+  {
+    "video_id": "Af6i6ChAVTw",
+    "question": "Why did the host, MrBeast, choose the specific contestants for this challenge?",
+    "selected": "B",
+    "correct_answer": "B",
+    "is_correct": true,
+    "topic_hint": "MrBeast explains, \"I chose every single contestant in this video because each of them said publicly that my videos were extremely easy, and if they were ever in one, they would win for sure.\"",
+    "timestamp": "2026-08-17T11:12:18.973019Z"
+  },
+  {
+    "video_id": "Af6i6ChAVTw",
+    "question": "What condiment did Chaise famously pour on the carpet, escalating the chaos in the house?",
+    "selected": "C",
+    "correct_answer": "C",
+    "is_correct": true,
+    "topic_hint": "A contestant exclaims in frustration, \"He is pouring ranch on the CARPET!\"",
+    "timestamp": "2026-08-17T11:12:20.656012Z"
+  },
+  {
+    "video_id": "Af6i6ChAVTw",
+    "question": "What collaborative project did the contestants undertake to improve their entertainment options in the mansion?",
+    "selected": "D",
+    "correct_answer": "B",
+    "is_correct": false,
+    "topic_hint": "Chaise says, \"I'm gonna build a project,\" and another voice clarifies, \"So they building something to get the last TV remote.\"",
+    "timestamp": "2026-08-17T11:12:21.822368Z"
+  }
+]

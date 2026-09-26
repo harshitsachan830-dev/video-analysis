@@ -1,0 +1,32 @@
+[
+  {
+    "role": "user",
+    "content": "what hgappend at 20:15",
+    "timestamp": "2026-06-22T17:32:58.630616Z"
+  },
+  {
+    "role": "assistant",
+    "content": "I couldn't find relevant information in this video for your question.",
+    "timestamp": "2026-06-22T17:32:58.630787Z"
+  },
+  {
+    "role": "user",
+    "content": "notes",
+    "timestamp": "2026-06-22T17:33:18.872532Z"
+  },
+  {
+    "role": "assistant",
+    "content": "The transcript context at 10:56 only contains the word \"टाटा\" (Tata). There are no additional notes or information provided.",
+    "timestamp": "2026-06-22T17:33:18.873170Z"
+  },
+  {
+    "role": "user",
+    "content": "🧠 Quiz — MCQ practice questions",
+    "timestamp": "2026-06-22T17:33:38.331715Z"
+  },
+  {
+    "role": "assistant",
+    "content": "I couldn't find relevant information in this video for your question.",
+    "timestamp": "2026-06-22T17:33:38.331889Z"
+  }
+]

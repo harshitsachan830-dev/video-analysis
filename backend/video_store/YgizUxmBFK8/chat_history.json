@@ -1,0 +1,12 @@
+[
+  {
+    "role": "user",
+    "content": "what happend at 42:3",
+    "timestamp": "2026-06-22T17:46:55.510914Z"
+  },
+  {
+    "role": "assistant",
+    "content": "I couldn't find relevant information in this video for your question.",
+    "timestamp": "2026-06-22T17:46:55.511081Z"
+  }
+]

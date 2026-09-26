@@ -1,0 +1,22 @@
+[
+  {
+    "role": "user",
+    "content": "what happend at 5:00 to 10:00",
+    "timestamp": "2026-06-22T18:18:36.454134Z"
+  },
+  {
+    "role": "assistant",
+    "content": "Between 09:07 and 10:08, a challenge took place where 50 YouTubers had to identify which five mannequins would move when the Harlem Shake song's beat dropped. The first fifteen to correctly enter the numbers of the moving mannequins would advance, and the other fifteen would be eliminated (09:07).\n\nContestants formed teams to work together, looking for the moving mannequins and sharing numbers (10:08). Some participants managed to \"steal\" correct answers from other teams to secure their spot among the first fifteen to move on (10:08). The segment ends with the results of this round, with some contestants celebrating their success while others expressed frustration at having their answers copied or being eliminated.",
+    "timestamp": "2026-06-22T18:18:36.455317Z"
+  },
+  {
+    "role": "user",
+    "content": "between 15:00 and  20:00",
+    "timestamp": "2026-06-22T18:19:13.507893Z"
+  },
+  {
+    "role": "assistant",
+    "content": "I couldn't find relevant information in this video for your question.",
+    "timestamp": "2026-06-22T18:19:13.508055Z"
+  }
+]
