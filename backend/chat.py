@@ -1,35 +1,18 @@
-import os
 import json
 import re
-import time
 from google.genai import types
 from dotenv import load_dotenv
-from gemini import GEMINI_MODEL, get_gemini_client
+from gemini import generate_content
 
 load_dotenv()
 
-MODEL = GEMINI_MODEL
 MAX_TRANSCRIPT_CHARS = 12000
 MAX_NOTES_CHARS = 15000
 
 
 def _gemini_call(contents, config=None, max_retries=4):
-    """Call Gemini with automatic exponential backoff on 429/503 errors."""
-    delay = 5  # start with 5-second wait
-    for attempt in range(max_retries + 1):
-        try:
-            kwargs = {"model": MODEL, "contents": contents}
-            if config:
-                kwargs["config"] = config
-            return get_gemini_client().models.generate_content(**kwargs)
-        except Exception as e:
-            err = str(e)
-            # Retry on rate limit (429) or server overload (503)
-            if attempt < max_retries and ("429" in err or "503" in err or "RESOURCE_EXHAUSTED" in err or "UNAVAILABLE" in err):
-                time.sleep(delay)
-                delay *= 2  # exponential: 5, 10, 20, 40 seconds
-                continue
-            raise  # re-raise on final attempt or other errors
+    """Call Gemini with a fallback model for transient capacity errors."""
+    return generate_content(contents, config=config, max_retries=min(max_retries, 1))
 
 def build_context(chunks: list[dict]) -> str:
     context_parts = []

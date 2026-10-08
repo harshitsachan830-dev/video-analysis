@@ -25,11 +25,9 @@ except ImportError:
 
 from google.genai import types
 from dotenv import load_dotenv
-from gemini import GEMINI_MODEL, get_gemini_client
+from gemini import generate_content
 
 load_dotenv()
-
-MODEL  = GEMINI_MODEL
 
 # ─────────────────────────────────────────
 # CONFIG
@@ -184,29 +182,22 @@ Otherwise, provide a structured extraction. Be concise but complete."""
 
 def _analyze_frame_with_gemini(frame_bytes: bytes, timestamp: str, max_retries: int = 3) -> str | None:
     """Send a single frame to Gemini Vision and return the analysis text."""
-    delay = 5
-    for attempt in range(max_retries + 1):
-        try:
-            response = get_gemini_client().models.generate_content(
-                model=MODEL,
-                contents=[
-                    types.Part.from_bytes(data=frame_bytes, mime_type="image/jpeg"),
-                    f"Video timestamp: {timestamp}\n\n{_VISION_PROMPT}",
-                ],
-            )
-            text = response.text.strip() if response.text else ""
-            if text == "NO_CONTENT" or not text:
-                return None
-            return text
-        except Exception as e:
-            err = str(e)
-            if attempt < max_retries and ("429" in err or "503" in err or "RESOURCE_EXHAUSTED" in err or "UNAVAILABLE" in err):
-                print(f"[Vision] Rate limited at {timestamp}, retrying in {delay}s...")
-                time.sleep(delay)
-                delay *= 2
-                continue
-            print(f"[Vision] Frame analysis error at {timestamp}: {e}")
-            raise RuntimeError(f"Frame analysis failed at {timestamp}: {e}") from e
+    try:
+        response = generate_content(
+            contents=[
+                types.Part.from_bytes(data=frame_bytes, mime_type="image/jpeg"),
+                f"Video timestamp: {timestamp}\n\n{_VISION_PROMPT}",
+            ],
+            max_retries=min(max_retries, 1),
+        )
+    except Exception as error:
+        print(f"[Vision] Frame analysis error at {timestamp}: {error}")
+        raise RuntimeError(f"Frame analysis failed at {timestamp}: {error}") from error
+
+    text = response.text.strip() if response.text else ""
+    if text == "NO_CONTENT" or not text:
+        return None
+    return text
 
 
 # ─────────────────────────────────────────

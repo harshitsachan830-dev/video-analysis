@@ -1,10 +1,12 @@
 import os
+import time
 from contextvars import ContextVar
 from dataclasses import dataclass
 
 from google import genai
 
 GEMINI_MODEL = "gemini-3.8-flash"
+GEMINI_FALLBACK_MODEL = "gemini-2.5-flash-lite"
 
 
 @dataclass
@@ -40,3 +42,34 @@ def get_gemini_client() -> genai.Client:
         return context.client
 
     return genai.Client(api_key=api_key)
+
+
+def generate_content(contents, config=None, max_retries: int = 1):
+    client = get_gemini_client()
+    last_error = None
+
+    for model in (GEMINI_MODEL, GEMINI_FALLBACK_MODEL):
+        for attempt in range(max_retries + 1):
+            kwargs = {"model": model, "contents": contents}
+            if config:
+                kwargs["config"] = config
+            try:
+                return client.models.generate_content(**kwargs)
+            except Exception as error:
+                last_error = error
+                message = str(error)
+                is_transient = any(
+                    marker in message
+                    for marker in ("429", "503", "RESOURCE_EXHAUSTED", "UNAVAILABLE")
+                )
+                if not is_transient:
+                    raise
+                if attempt < max_retries:
+                    time.sleep(2 ** attempt)
+                    continue
+                break
+
+    raise RuntimeError(
+        "Gemini is temporarily unavailable on the primary and fallback models. "
+        "Please wait a moment and try again."
+    ) from last_error
