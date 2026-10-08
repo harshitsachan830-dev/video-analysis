@@ -14,7 +14,7 @@ from embeddings import (
     build_index, search_chunks, is_video_indexed,
     get_full_transcript_text, get_video_chunks, get_video_stats,
     # Step 3 — Persistent Storage
-    preload_all_videos, list_all_videos, delete_video,
+    list_all_videos, delete_video,
 )
 from chat import (
     chat_with_video, generate_summary,
@@ -46,11 +46,7 @@ load_dotenv()
 
 @asynccontextmanager
 async def lifespan(app_instance):
-    loaded = preload_all_videos()
-    if loaded:
-        print(f"[VideoGPT] ✅ Auto-loaded {len(loaded)} video(s) from disk: {loaded}")
-    else:
-        print("[VideoGPT] 📂 No saved videos found. Ready for new ones.")
+    print("[VideoGPT] 📂 Saved videos will be loaded on demand.")
     yield
 
 

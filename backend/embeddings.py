@@ -1,14 +1,11 @@
 import os
 import json
-import numpy as np
-import faiss
-from sentence_transformers import SentenceTransformer
+import math
+import re
 
 # ─────────────────────────────────────────
 # CONFIG
 # ─────────────────────────────────────────
-
-model = SentenceTransformer('all-MiniLM-L6-v2', local_files_only=True)
 
 # All data persisted here (relative to backend/ dir)
 STORAGE_DIR = os.path.join(os.path.dirname(__file__), "video_store")
@@ -18,7 +15,13 @@ os.makedirs(STORAGE_DIR, exist_ok=True)
 video_store: dict = {}
 
 DEFAULT_TOP_K = 8
-MIN_SIMILARITY_SCORE = 0.20
+TOKEN_RE = re.compile(r"[^\W_][\w\u0300-\u036f\u0900-\u097f]*", re.UNICODE)
+STOP_WORDS = {
+    "a", "an", "and", "are", "as", "at", "be", "by", "for", "from",
+    "how", "i", "in", "is", "it", "of", "on", "or", "that", "the",
+    "this", "to", "was", "what", "when", "where", "which", "who",
+    "why", "with", "you",
+}
 
 
 # ─────────────────────────────────────────
@@ -31,9 +34,6 @@ def _video_dir(video_id: str) -> str:
     os.makedirs(path, exist_ok=True)
     return path
 
-def _index_path(video_id: str) -> str:
-    return os.path.join(_video_dir(video_id), "index.faiss")
-
 def _chunks_path(video_id: str) -> str:
     return os.path.join(_video_dir(video_id), "chunks.json")
 
@@ -45,10 +45,8 @@ def _meta_path(video_id: str) -> str:
 # SAVE / LOAD FROM DISK
 # ─────────────────────────────────────────
 
-def _save_to_disk(video_id: str, index: faiss.Index, chunks: list[dict]) -> None:
-    """Persist FAISS index + chunks to disk."""
-    faiss.write_index(index, _index_path(video_id))
-
+def _save_to_disk(video_id: str, chunks: list[dict]) -> None:
+    """Persist transcript chunks and metadata to disk."""
     with open(_chunks_path(video_id), "w", encoding="utf-8") as f:
         json.dump(chunks, f, ensure_ascii=False, indent=2)
 
@@ -63,20 +61,18 @@ def _save_to_disk(video_id: str, index: faiss.Index, chunks: list[dict]) -> None
 
 def _load_from_disk(video_id: str) -> bool:
     """
-    Load a video's FAISS index + chunks from disk into memory.
+    Load a video's transcript chunks from disk into memory.
     Returns True if successful, False if files don't exist.
     """
-    idx_path    = _index_path(video_id)
     chunks_path = _chunks_path(video_id)
 
-    if not os.path.exists(idx_path) or not os.path.exists(chunks_path):
+    if not os.path.exists(chunks_path):
         return False
 
     try:
-        index = faiss.read_index(idx_path)
         with open(chunks_path, "r", encoding="utf-8") as f:
             chunks = json.load(f)
-        video_store[video_id] = {"index": index, "chunks": chunks}
+        video_store[video_id] = {"chunks": chunks}
         return True
     except Exception:
         return False
@@ -106,35 +102,72 @@ def preload_all_videos() -> list[str]:
 
 def build_index(video_id: str, chunks: list[dict]) -> int:
     """
-    Build FAISS index from transcript chunks.
-    Saves to disk AND keeps in memory.
+    Store transcript chunks for lightweight lexical search.
     Returns the number of chunks indexed.
     """
-    texts = [chunk.get("text", "") for chunk in chunks if chunk.get("text", "").strip()]
-
-    if not texts:
+    if not any(chunk.get("text", "").strip() for chunk in chunks):
         raise ValueError("No transcript text available to index.")
 
-    embeddings = model.encode(texts, show_progress_bar=False, batch_size=64)
-    embeddings = np.array(embeddings).astype('float32')
-
-    # Normalize for cosine similarity
-    faiss.normalize_L2(embeddings)
-
-    dimension = embeddings.shape[1]
-    index = faiss.IndexFlatIP(dimension)   # Inner product = cosine after normalization
-    index.add(embeddings)
-
-    # Keep in memory
     video_store[video_id] = {
-        "index":  index,
         "chunks": chunks,
     }
 
-    # 💾 Persist to disk
-    _save_to_disk(video_id, index, chunks)
+    _save_to_disk(video_id, chunks)
 
     return len(chunks)
+
+
+def _tokenize(text: str) -> list[str]:
+    return [
+        token for token in TOKEN_RE.findall(text.lower())
+        if token not in STOP_WORDS and len(token) > 1
+    ]
+
+
+def _rank_chunks(query: str, chunks: list[dict], top_k: int) -> list[tuple[float, dict]]:
+    query_terms = set(_tokenize(query))
+    if not query_terms or not chunks or top_k <= 0:
+        return []
+
+    tokenized = [_tokenize(chunk.get("text", "")) for chunk in chunks]
+    doc_count = len(tokenized)
+    average_length = sum(map(len, tokenized)) / doc_count if doc_count else 0
+    if average_length == 0:
+        return []
+
+    document_frequency: dict[str, int] = {}
+    for tokens in tokenized:
+        for term in query_terms.intersection(tokens):
+            document_frequency[term] = document_frequency.get(term, 0) + 1
+
+    scored = []
+    for chunk, tokens in zip(chunks, tokenized):
+        if not tokens:
+            continue
+        frequencies: dict[str, int] = {}
+        for token in tokens:
+            if token in query_terms:
+                frequencies[token] = frequencies.get(token, 0) + 1
+        score = 0.0
+        for term, frequency in frequencies.items():
+            idf = math.log(1 + (doc_count - document_frequency[term] + 0.5) / (document_frequency[term] + 0.5))
+            length_norm = 1.2 * (1 - 0.75 + 0.75 * len(tokens) / average_length)
+            score += idf * frequency * 2.2 / (frequency + length_norm)
+        if score > 0:
+            scored.append((score, chunk))
+
+    scored.sort(key=lambda item: item[0], reverse=True)
+    return scored[:top_k]
+
+
+def _with_normalized_scores(scored: list[tuple[float, dict]]) -> list[dict]:
+    if not scored:
+        return []
+    max_score = scored[0][0]
+    return [
+        {**chunk, "score": round(score / max_score, 4)}
+        for score, chunk in scored
+    ]
 
 
 def search_chunks(video_id: str, query: str, top_k: int = DEFAULT_TOP_K) -> list[dict]:
@@ -150,71 +183,35 @@ def search_chunks(video_id: str, query: str, top_k: int = DEFAULT_TOP_K) -> list
     if not query or not query.strip():
         return []
 
-    store = video_store[video_id]
-    index = store["index"]
-    chunks = store["chunks"]
-
-    effective_top_k = min(top_k, len(chunks))
-    if effective_top_k == 0:
-        return []
-
-    query_embedding = model.encode([query.strip()], show_progress_bar=False)
-    query_embedding = np.array(query_embedding).astype('float32')
-    faiss.normalize_L2(query_embedding)
-
-    scores, indices = index.search(query_embedding, effective_top_k)
-
-    results = []
-    for score, idx in zip(scores[0], indices[0]):
-        if idx < 0 or idx >= len(chunks):
-            continue
-        score = float(score)
-        if score < MIN_SIMILARITY_SCORE:
-            continue
-        results.append({
-            **chunks[idx],
-            "score": round(score, 4),
-        })
-
-    results.sort(key=lambda x: x["score"], reverse=True)
-    return results
+    scored = _rank_chunks(query.strip(), video_store[video_id]["chunks"], top_k)
+    return _with_normalized_scores(scored)
 
 def search_all_videos(query: str, top_k: int = 5) -> list[dict]:
     """Search for relevant chunks across all indexed videos."""
-    if not query or not query.strip():
+    if not query or not query.strip() or top_k <= 0:
         return []
-        
-    query_embedding = model.encode([query.strip()], show_progress_bar=False)
-    query_embedding = np.array(query_embedding).astype('float32')
-    faiss.normalize_L2(query_embedding)
-    
-    all_results = []
-    
-    # Load all videos to search them
-    preload_all_videos()
-    
-    for vid, store in video_store.items():
-        index = store["index"]
-        chunks = store["chunks"]
-        
-        if len(chunks) == 0: continue
-        
-        eff_k = min(top_k, len(chunks))
-        scores, indices = index.search(query_embedding, eff_k)
-        
-        for score, idx in zip(scores[0], indices[0]):
-            if idx < 0 or idx >= len(chunks): continue
-            score = float(score)
-            if score < MIN_SIMILARITY_SCORE: continue
-            
-            all_results.append({
-                "video_id": vid,
-                **chunks[idx],
-                "score": round(score, 4),
-            })
-            
-    all_results.sort(key=lambda x: x["score"], reverse=True)
-    return all_results[:top_k]
+
+    all_results: list[tuple[float, dict]] = []
+    if not os.path.isdir(STORAGE_DIR):
+        return []
+
+    for entry in os.scandir(STORAGE_DIR):
+        if not entry.is_dir():
+            continue
+        vid = entry.name
+        if vid in video_store:
+            chunks = video_store[vid]["chunks"]
+        else:
+            chunks_path = os.path.join(entry.path, "chunks.json")
+            if not os.path.exists(chunks_path):
+                continue
+            with open(chunks_path, "r", encoding="utf-8") as f:
+                chunks = json.load(f)
+        for score, chunk in _rank_chunks(query.strip(), chunks, top_k):
+            all_results.append((score, {"video_id": vid, **chunk}))
+
+    all_results.sort(key=lambda item: item[0], reverse=True)
+    return _with_normalized_scores(all_results[:top_k])
 
 
 def is_video_indexed(video_id: str) -> bool:
