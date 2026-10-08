@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from google import genai
 
 GEMINI_MODEL = "gemini-3.8-flash"
-GEMINI_FALLBACK_MODEL = "gemini-2.5-flash-lite"
+GEMINI_FALLBACK_MODEL = "gemini-3.5-flash-lite"
 
 
 @dataclass
