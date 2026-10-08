@@ -1,0 +1,16 @@
+# Deployment
+
+## Frontend — Vercel
+
+1. Import this repository into Vercel and set the project root directory to `frontend`.
+2. Add the `VITE_API_URL` environment variable, set to the public URL of the Render backend (for example, `https://video-analysis-api.onrender.com`).
+3. Deploy the project. The Vercel settings in `frontend/vercel.json` use Vite and publish the `dist` directory.
+
+## Backend — Render
+
+1. Create a new Blueprint deployment from this repository and select the root `render.yaml`.
+2. Add a valid `GEMINI_API_KEY` when Render prompts for the secret.
+3. Deploy the `video-analysis-api` web service. The Docker build preloads the embedding model because the backend requires it to already exist locally.
+4. Copy the service's public URL into the Vercel `VITE_API_URL` setting, then redeploy the frontend so it uses the backend URL.
+
+The included Render Blueprint uses the free plan. Free services can sleep when idle, have limited memory, and do not provide persistent disks. This backend loads a PyTorch embedding model on startup and stores indexed videos on local disk, so the free instance may run out of memory and newly indexed data can be lost when the service restarts. The deployment is suitable for experimentation, not durable storage or guaranteed uptime. Gemini-powered features also require a valid API key.
