@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import './index.css'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const GEMINI_KEY_STORAGE = 'videogpt.geminiApiKey'
 const GEMINI_ENDPOINTS = new Set([
   '/chat', '/summary', '/timestamp-query', '/generate-notes', '/generate-mcqs',
   '/extract-mnemonics', '/generate-interview-questions', '/extract-visuals',
@@ -203,8 +204,15 @@ function App() {
   const [factCheckResults,setFactCheckResults]= useState({})
   const [savedVideos,     setSavedVideos]     = useState([])
   const [deletingId,      setDeletingId]      = useState(null)
-  const [geminiApiKey,    setGeminiApiKey]    = useState('')
+  const [geminiApiKey,    setGeminiApiKey]    = useState(() => {
+    try {
+      return localStorage.getItem(GEMINI_KEY_STORAGE) || ''
+    } catch {
+      return ''
+    }
+  })
   const [geminiKeyDraft,  setGeminiKeyDraft]  = useState('')
+  const [geminiKeyStorageError, setGeminiKeyStorageError] = useState('')
   const [keySettingsOpen, setKeySettingsOpen] = useState(false)
 
   /* ── New UI state ── */
@@ -222,7 +230,20 @@ function App() {
 
   const openKeySettings = () => {
     setGeminiKeyDraft(geminiApiKey)
+    setGeminiKeyStorageError('')
     setKeySettingsOpen(true)
+  }
+
+  const saveGeminiApiKey = (key) => {
+    const normalizedKey = key.trim()
+    setGeminiApiKey(normalizedKey)
+    try {
+      if (normalizedKey) localStorage.setItem(GEMINI_KEY_STORAGE, normalizedKey)
+      else localStorage.removeItem(GEMINI_KEY_STORAGE)
+      setGeminiKeyStorageError('')
+    } catch {
+      setGeminiKeyStorageError('Browser storage is unavailable. This key will last only until you close or refresh this page.')
+    }
   }
 
   /* ── Auto-scroll ── */
@@ -904,8 +925,8 @@ function App() {
           <button className="vg-modal-close" onClick={() => setKeySettingsOpen(false)} aria-label="Close">×</button>
           <div className="vg-key-modal-icon">🔐</div>
           <h2 id="vg-key-title">Use your Gemini API key</h2>
-          <p>AI features use your Gemini account and its usage limits. Your key stays in this page’s memory and is sent to this app’s backend for AI requests. The backend uses it with Google Gemini and does not save it.</p>
-          <form onSubmit={e => { e.preventDefault(); setGeminiApiKey(geminiKeyDraft.trim()); setKeySettingsOpen(false) }}>
+          <p>AI features use your Gemini account and its usage limits. Your key is saved in this browser on this device and sent to this app’s backend only for AI requests. The backend does not save it. Anyone who can use this browser profile can access the saved key.</p>
+          <form onSubmit={e => { e.preventDefault(); saveGeminiApiKey(geminiKeyDraft); setKeySettingsOpen(false) }}>
             <label className="vg-key-label" htmlFor="vg-gemini-key">Gemini API key</label>
             <input
               id="vg-gemini-key"
@@ -919,9 +940,10 @@ function App() {
               autoFocus
             />
             <div className="vg-key-actions">
-              <button className="vg-key-save" type="submit" disabled={!geminiKeyDraft.trim()}>Save for this session</button>
-              {geminiApiKey && <button className="vg-key-remove" type="button" onClick={() => { setGeminiApiKey(''); setGeminiKeyDraft(''); setKeySettingsOpen(false) }}>Remove key</button>}
+              <button className="vg-key-save" type="submit" disabled={!geminiKeyDraft.trim()}>Save on this device</button>
+              {geminiApiKey && <button className="vg-key-remove" type="button" onClick={() => { saveGeminiApiKey(''); setGeminiKeyDraft(''); setKeySettingsOpen(false) }}>Remove key</button>}
             </div>
+            {geminiKeyStorageError && <div className="vg-hero-err" role="alert">{geminiKeyStorageError}</div>}
           </form>
           <a className="vg-key-help" href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer">Get a Gemini API key from Google AI Studio ↗</a>
         </section>
