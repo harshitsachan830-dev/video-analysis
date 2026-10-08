@@ -1,6 +1,10 @@
 import re
 import os
 import tempfile
+import time
+from urllib.parse import quote
+
+import httpx
 import yt_dlp
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import TranscriptsDisabled, NoTranscriptFound
@@ -123,9 +127,13 @@ def _parse_vtt(content: str) -> list[dict]:
 
 def get_transcript(video_id: str) -> list[dict]:
     """
-    Fetch transcript using yt-dlp (primary) with browser cookies
-    to bypass YouTube IP blocks. Falls back to youtube-transcript-api.
+    Fetch a native transcript from Supadata when configured, otherwise use
+    the existing YouTube transcript sources.
     """
+    supadata_api_key = os.getenv("SUPADATA_API_KEY", "").strip()
+    if supadata_api_key:
+        return _get_transcript_supadata(video_id, supadata_api_key)
+
     video_url = f"https://www.youtube.com/watch?v={video_id}"
 
     # ── Method 1: yt-dlp with Chrome cookies (handles IP blocks) ──
@@ -163,6 +171,85 @@ def get_transcript(video_id: str) -> list[dict]:
         raise Exception("Transcripts are disabled for this video.")
     except Exception as e:
         raise Exception(f"Could not fetch transcript: {str(e)}")
+
+
+def _get_transcript_supadata(video_id: str, api_key: str) -> list[dict]:
+    """Fetch an existing timestamped transcript through Supadata."""
+    video_url = f"https://www.youtube.com/watch?v={video_id}"
+    headers = {"x-api-key": api_key}
+    deadline = time.monotonic() + 60
+
+    with httpx.Client(timeout=20) as client:
+        response = client.get(
+            "https://api.supadata.ai/v1/transcript",
+            params={"url": video_url, "mode": "native"},
+            headers=headers,
+        )
+
+        if response.status_code == 206:
+            raise ValueError("Supadata could not find an existing transcript for this video.")
+        if response.status_code == 202:
+            payload = response.json()
+            job_id = payload.get("jobId") if isinstance(payload, dict) else None
+            if not job_id:
+                raise RuntimeError("Supadata started a transcript job but did not return a job ID.")
+
+            while True:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise TimeoutError("Supadata transcript job did not finish within 60 seconds.")
+                time.sleep(min(1, remaining))
+                response = client.get(
+                    f"https://api.supadata.ai/v1/transcript/{quote(str(job_id), safe='')}",
+                    headers=headers,
+                    timeout=min(15, remaining),
+                )
+                _raise_supadata_error(response)
+                payload = response.json()
+                if not isinstance(payload, dict):
+                    raise RuntimeError("Supadata returned an invalid transcript job response.")
+                status = payload.get("status")
+                if status == "completed":
+                    break
+                if status == "failed":
+                    raise RuntimeError(
+                        f"Supadata transcript job failed: {payload.get('error', 'unknown error')}"
+                    )
+                if status not in {"queued", "active"}:
+                    raise RuntimeError(f"Supadata returned an unknown transcript job status: {status!r}.")
+        else:
+            _raise_supadata_error(response)
+            payload = response.json()
+
+    if not isinstance(payload, dict) or not isinstance(payload.get("content"), list):
+        raise RuntimeError("Supadata did not return timestamped transcript segments.")
+
+    entries = []
+    for segment in payload["content"]:
+        if not isinstance(segment, dict) or not isinstance(segment.get("text"), str):
+            raise RuntimeError("Supadata returned an invalid transcript segment.")
+        try:
+            start = float(segment["offset"]) / 1000
+            duration = float(segment["duration"]) / 1000
+        except (KeyError, TypeError, ValueError) as exc:
+            raise RuntimeError("Supadata returned transcript segments without valid timestamps.") from exc
+        text = segment["text"].strip()
+        if text:
+            entries.append({"text": text, "start": start, "duration": duration})
+    return entries
+
+
+def _raise_supadata_error(response: httpx.Response) -> None:
+    if response.is_success:
+        return
+
+    try:
+        payload = response.json()
+    except ValueError:
+        payload = {}
+    message = payload.get("message") if isinstance(payload, dict) else None
+    detail = f": {message}" if message else ""
+    raise RuntimeError(f"Supadata transcript API returned HTTP {response.status_code}{detail}")
 
 
 def _get_transcript_ytdlp(video_url: str, cookiesfrombrowser=None) -> list[dict]:
