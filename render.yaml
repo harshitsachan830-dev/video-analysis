@@ -6,6 +6,3 @@ services:
     rootDir: backend
     dockerfilePath: ./Dockerfile
     healthCheckPath: /health
-    envVars:
-      - key: GEMINI_API_KEY
-        sync: false

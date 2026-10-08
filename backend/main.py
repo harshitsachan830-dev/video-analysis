@@ -1,6 +1,6 @@
 import os
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -35,6 +35,7 @@ from spaced_repetition import (
     schedule_topic, get_due_cards, get_all_cards, review_card, delete_card,
     get_stats, bulk_schedule_from_weak_topics
 )
+from gemini import reset_request_context, set_request_api_key
 
 load_dotenv()
 
@@ -62,6 +63,27 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def gemini_api_key_middleware(request: Request, call_next):
+    api_key = request.headers.get("x-gemini-api-key", "").strip() or None
+    token = set_request_api_key(api_key)
+    try:
+        return await call_next(request)
+    finally:
+        reset_request_context(token)
+
+
+def require_gemini_api_key(
+    x_gemini_api_key: str | None = Header(default=None),
+) -> None:
+    if not (x_gemini_api_key and x_gemini_api_key.strip()) and not os.getenv("GEMINI_API_KEY"):
+        raise HTTPException(
+            status_code=400,
+            detail="Add your Gemini API key in Settings to use AI features.",
+        )
+
 
 # ─────────────────────────────────────────
 # REQUEST MODELS
@@ -351,7 +373,7 @@ def load_playlist(req: PlaylistRequest):
     }
 
 
-@app.post("/chat")
+@app.post("/chat", dependencies=[Depends(require_gemini_api_key)])
 def chat(req: ChatRequest):
     """Answer a question about the video using RAG."""
     require_video(req.video_id)
@@ -367,7 +389,7 @@ def chat(req: ChatRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/summary")
+@app.post("/summary", dependencies=[Depends(require_gemini_api_key)])
 def summary(req: SummaryRequest):
     """Generate a full video summary."""
     require_video(req.video_id)
@@ -393,7 +415,7 @@ def video_status(video_id: str):
 # PHASE 2 ROUTES
 # ─────────────────────────────────────────
 
-@app.post("/timestamp-query")
+@app.post("/timestamp-query", dependencies=[Depends(require_gemini_api_key)])
 def timestamp_query(req: TimestampRequest):
     """Answer: 'What happened at 6:40?'"""
     require_video(req.video_id)
@@ -414,7 +436,7 @@ def timestamp_query(req: TimestampRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/generate-notes")
+@app.post("/generate-notes", dependencies=[Depends(require_gemini_api_key)])
 def notes(req: NotesRequest):
     """Generate chapter-wise structured notes."""
     require_video(req.video_id)
@@ -430,7 +452,7 @@ def notes(req: NotesRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/generate-mcqs")
+@app.post("/generate-mcqs", dependencies=[Depends(require_gemini_api_key)])
 def mcqs(req: MCQRequest):
     """Generate multiple choice questions."""
     require_video(req.video_id)
@@ -453,7 +475,7 @@ def mcqs(req: MCQRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/extract-mnemonics")
+@app.post("/extract-mnemonics", dependencies=[Depends(require_gemini_api_key)])
 def mnemonics(req: MnemonicsRequest):
     """Extract mnemonics, formulas, and key facts."""
     require_video(req.video_id)
@@ -469,7 +491,7 @@ def mnemonics(req: MnemonicsRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/generate-interview-questions")
+@app.post("/generate-interview-questions", dependencies=[Depends(require_gemini_api_key)])
 def interview_questions(req: InterviewRequest):
     """Generate interview/exam questions."""
     require_video(req.video_id)
@@ -488,7 +510,7 @@ def interview_questions(req: InterviewRequest):
 # PHASE 3 — ADVANCED FEATURES
 # ─────────────────────────────────────────
 
-@app.post("/extract-visuals")
+@app.post("/extract-visuals", dependencies=[Depends(require_gemini_api_key)])
 def extract_visuals(req: SummaryRequest):
     """Download video, extract frames, analyze with Gemini Vision."""
     require_video(req.video_id)
@@ -504,7 +526,7 @@ def visual_context(video_id: str):
     require_video(video_id)
     return {"video_id": video_id, "visual_chunks": get_visual_context(video_id)}
 
-@app.post("/chat-with-memory")
+@app.post("/chat-with-memory", dependencies=[Depends(require_gemini_api_key)])
 def memory_chat(req: MemoryChatRequest):
     """Chat with the video, using timeline memory for context."""
     require_video(req.video_id)
@@ -541,7 +563,7 @@ def clear_chat_history(video_id: str):
     count = clear_history(video_id)
     return {"message": f"Cleared {count} messages for video {video_id}."}
 
-@app.post("/check-hallucination")
+@app.post("/check-hallucination", dependencies=[Depends(require_gemini_api_key)])
 def hallucination_check(req: HallucinationRequest):
     """Verify if an AI answer is fully supported by the transcript sources."""
     require_video(req.video_id)
@@ -571,7 +593,7 @@ def get_knowledge_graph():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/generate-revision-notes")
+@app.post("/generate-revision-notes", dependencies=[Depends(require_gemini_api_key)])
 def revision_notes(req: SummaryRequest):
     """Generate concise, last-minute revision notes."""
     require_video(req.video_id)

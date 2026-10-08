@@ -9,8 +9,9 @@
 ## Backend — Render
 
 1. Create a new Blueprint deployment from this repository and select the root `render.yaml`.
-2. Add a valid `GEMINI_API_KEY` when Render prompts for the secret.
-3. Deploy the `video-analysis-api` web service. The Docker build preloads the embedding model because the backend requires it to already exist locally.
-4. Copy the service's public URL into the Vercel `VITE_API_URL` setting, then redeploy the frontend so it uses the backend URL.
+2. Deploy the `video-analysis-api` web service. The Docker build preloads the embedding model because the backend requires it to already exist locally.
+3. Copy the service's public URL into the Vercel `VITE_API_URL` setting, then redeploy the frontend so it uses the backend URL.
 
-The included Render Blueprint uses the free plan. Free services can sleep when idle, have limited memory, and do not provide persistent disks. This backend loads a PyTorch embedding model on startup and stores indexed videos on local disk, so the free instance may run out of memory and newly indexed data can be lost when the service restarts. The deployment is suitable for experimentation, not durable storage or guaranteed uptime. Gemini-powered features also require a valid API key.
+Users add their Gemini API key in the app's **Add Gemini API key** settings. The key is kept in page memory only, sent to the backend with AI requests, used by the backend to authenticate with Google Gemini, and not persisted by the app. Users are responsible for their Gemini account's usage and any applicable charges. You can optionally configure a server-level `GEMINI_API_KEY` on Render as a fallback, but it is not required when users provide their own keys.
+
+The included Render Blueprint uses the free plan. Free services can sleep when idle, have limited memory, and do not provide persistent disks. This backend loads a PyTorch embedding model on startup and stores indexed videos on local disk, so the free instance may run out of memory and newly indexed data can be lost when the service restarts. The deployment is suitable for experimentation, not durable storage or guaranteed uptime.

@@ -2,13 +2,12 @@ import os
 import json
 import re
 import time
-from google import genai
 from google.genai import types
 from dotenv import load_dotenv
+from gemini import get_gemini_client
 
 load_dotenv()
 
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 MODEL = "gemini-2.5-flash"
 MAX_TRANSCRIPT_CHARS = 12000
 MAX_NOTES_CHARS = 15000
@@ -22,7 +21,7 @@ def _gemini_call(contents, config=None, max_retries=4):
             kwargs = {"model": MODEL, "contents": contents}
             if config:
                 kwargs["config"] = config
-            return client.models.generate_content(**kwargs)
+            return get_gemini_client().models.generate_content(**kwargs)
         except Exception as e:
             err = str(e)
             # Retry on rate limit (429) or server overload (503)

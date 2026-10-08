@@ -23,13 +23,12 @@ try:
 except ImportError:
     YT_DLP_AVAILABLE = False
 
-from google import genai
 from google.genai import types
 from dotenv import load_dotenv
+from gemini import get_gemini_client
 
 load_dotenv()
 
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 MODEL  = "gemini-2.5-flash"
 
 # ─────────────────────────────────────────
@@ -188,7 +187,7 @@ def _analyze_frame_with_gemini(frame_bytes: bytes, timestamp: str, max_retries: 
     delay = 5
     for attempt in range(max_retries + 1):
         try:
-            response = client.models.generate_content(
+            response = get_gemini_client().models.generate_content(
                 model=MODEL,
                 contents=[
                     types.Part.from_bytes(data=frame_bytes, mime_type="image/jpeg"),
@@ -207,7 +206,7 @@ def _analyze_frame_with_gemini(frame_bytes: bytes, timestamp: str, max_retries: 
                 delay *= 2
                 continue
             print(f"[Vision] Frame analysis error at {timestamp}: {e}")
-            return None
+            raise RuntimeError(f"Frame analysis failed at {timestamp}: {e}") from e
 
 
 # ─────────────────────────────────────────

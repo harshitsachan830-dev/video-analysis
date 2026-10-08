@@ -2,6 +2,11 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import './index.css'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const GEMINI_ENDPOINTS = new Set([
+  '/chat', '/summary', '/timestamp-query', '/generate-notes', '/generate-mcqs',
+  '/extract-mnemonics', '/generate-interview-questions', '/extract-visuals',
+  '/chat-with-memory', '/check-hallucination', '/generate-revision-notes',
+])
 
 /* ─── SVG ICONS ─────────────────────────────────────────── */
 const IcHome     = () => <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
@@ -188,6 +193,7 @@ function App() {
   const [summary,         setSummary]         = useState('')
   const [summaryLoading,  setSummaryLoading]  = useState(false)
   const [visualChunks,    setVisualChunks]    = useState([])
+  const [visualError,     setVisualError]     = useState('')
   const [visualsLoading,  setVisualsLoading]  = useState(false)
   const [dashboard,       setDashboard]       = useState(null)
   const [profile,         setProfile]         = useState(null)
@@ -197,26 +203,43 @@ function App() {
   const [factCheckResults,setFactCheckResults]= useState({})
   const [savedVideos,     setSavedVideos]     = useState([])
   const [deletingId,      setDeletingId]      = useState(null)
+  const [geminiApiKey,    setGeminiApiKey]    = useState('')
+  const [geminiKeyDraft,  setGeminiKeyDraft]  = useState('')
+  const [keySettingsOpen, setKeySettingsOpen] = useState(false)
 
   /* ── New UI state ── */
   const [activeNav,    setActiveNav]    = useState('dashboard')
   const [quickAsk,     setQuickAsk]     = useState('')
+
+  const apiFetch = useCallback((input, options = {}) => {
+    const headers = new Headers(options.headers)
+    const pathname = new URL(input, API).pathname
+    if (geminiApiKey.trim() && GEMINI_ENDPOINTS.has(pathname)) {
+      headers.set('X-Gemini-API-Key', geminiApiKey.trim())
+    }
+    return fetch(input, { ...options, headers })
+  }, [geminiApiKey])
+
+  const openKeySettings = () => {
+    setGeminiKeyDraft(geminiApiKey)
+    setKeySettingsOpen(true)
+  }
 
   /* ── Auto-scroll ── */
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior:'smooth' }) }, [messages, isThinking])
 
   /* ── Fetch saved videos ── */
   const fetchSavedVideos = useCallback(async () => {
-    try { const r = await fetch(`${API}/videos`); const d = await r.json(); setSavedVideos(d.videos || []) }
+    try { const r = await apiFetch(`${API}/videos`); const d = await r.json(); setSavedVideos(d.videos || []) }
     catch { setSavedVideos([]) }
-  }, [])
+  }, [apiFetch])
   useEffect(() => { fetchSavedVideos() }, [fetchSavedVideos])
 
   /* ── HANDLERS (all existing, unchanged) ── */
   const handleLoadSaved = (vid) => {
     setVideoId(vid.video_id); setChunkCount(vid.total_chunks); setLoadStatus('loaded'); setUrl('')
     setMessages([{ role:'ai', content:`✅ Loaded **${vid.video_id}** from disk!\n\n💾 **${vid.total_chunks} chunks** already indexed.\n\nSwitch tabs to use all features.`, sources:[] }])
-    setNotes(''); setMcqs([]); setMnemonics(''); setInterview(''); setTsResult(null); setSummary(''); setSelectedAnswers({}); setVisualChunks([]); setFactCheckResults({})
+    setNotes(''); setMcqs([]); setMnemonics(''); setInterview(''); setTsResult(null); setSummary(''); setSelectedAnswers({}); setVisualChunks([]); setVisualError(''); setFactCheckResults({})
     setActiveTab('chat'); setActiveNav('chat')
   }
 
@@ -225,7 +248,7 @@ function App() {
     if (!window.confirm(`Delete "${vid_id}" from disk?`)) return
     setDeletingId(vid_id)
     try {
-      await fetch(`${API}/delete-video/${vid_id}`, { method:'DELETE' })
+      await apiFetch(`${API}/delete-video/${vid_id}`, { method:'DELETE' })
       if (videoId === vid_id) { setVideoId(null); setLoadStatus(null); setMessages([]); setActiveNav('dashboard') }
       await fetchSavedVideos()
     } catch(err) { console.error(err) }
@@ -234,14 +257,14 @@ function App() {
 
   const handleLoadVideo = async () => {
     if (!url.trim()) return
-    setLoadStatus('loading'); setLoadError(''); setVideoId(null); setMessages([]); setSummary(''); setNotes(''); setMcqs([]); setMnemonics(''); setInterview(''); setTsResult(null); setSelectedAnswers({}); setVisualChunks([]); setFactCheckResults({})
+    setLoadStatus('loading'); setLoadError(''); setVideoId(null); setMessages([]); setSummary(''); setNotes(''); setMcqs([]); setMnemonics(''); setInterview(''); setTsResult(null); setSelectedAnswers({}); setVisualChunks([]); setVisualError(''); setFactCheckResults({})
     try {
-      const res  = await fetch(`${API}/load-video`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ url:url.trim() }) })
+      const res  = await apiFetch(`${API}/load-video`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ url:url.trim() }) })
       const data = await res.json()
       if (!res.ok) throw new Error(data.detail || 'Failed to load video')
       setVideoId(data.video_id); setChunkCount(data.chunk_count); setLoadStatus('loaded')
       setMessages([{ role:'ai', content:`✅ Video indexed! **${data.chunk_count} chunks** ready.\n\nClick a feature card or use the tabs to explore.`, sources:[] }])
-      fetch(`${API}/analytics/session/start`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ video_id:data.video_id }) }).catch(console.error)
+      apiFetch(`${API}/analytics/session/start`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ video_id:data.video_id }) }).catch(console.error)
       fetchSavedVideos()
     } catch(err) { setLoadStatus('error'); setLoadError(err.message) }
   }
@@ -251,7 +274,7 @@ function App() {
     const question = chatInput.trim(); setChatInput('')
     setMessages(prev => [...prev, { role:'user', content:question, sources:[] }]); setIsThinking(true)
     try {
-      const res  = await fetch(`${API}/chat-with-memory`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ video_id:videoId, question }) })
+      const res  = await apiFetch(`${API}/chat-with-memory`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ video_id:videoId, question }) })
       const data = await res.json()
       if (!res.ok) throw new Error(data.detail || 'Failed')
       setMessages(prev => [...prev, { role:'ai', content:data.answer, sources:data.sources || [], id:Date.now() }])
@@ -261,7 +284,7 @@ function App() {
 
   const handleClearHistory = async () => {
     if (!videoId) return
-    try { await fetch(`${API}/chat-history/${videoId}`, { method:'DELETE' }); setMessages([{ role:'ai', content:'🧹 Chat history cleared!', sources:[] }]) }
+    try { await apiFetch(`${API}/chat-history/${videoId}`, { method:'DELETE' }); setMessages([{ role:'ai', content:'🧹 Chat history cleared!', sources:[] }]) }
     catch(err) { console.error(err) }
   }
 
@@ -269,7 +292,7 @@ function App() {
     if (factCheckResults[msgId]) return
     setFactCheckResults(prev => ({ ...prev, [msgId]:{ loading:true } }))
     try {
-      const res  = await fetch(`${API}/check-hallucination`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ video_id:videoId, answer:answerText }) })
+      const res  = await apiFetch(`${API}/check-hallucination`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ video_id:videoId, answer:answerText }) })
       const data = await res.json()
       setFactCheckResults(prev => ({ ...prev, [msgId]:{ loading:false, data } }))
     } catch { setFactCheckResults(prev => ({ ...prev, [msgId]:{ loading:false, error:true } })) }
@@ -278,7 +301,7 @@ function App() {
   const handleSummary = async () => {
     if (!videoId || summaryLoading) return
     setSummaryLoading(true); setSummary('')
-    try { const res = await fetch(`${API}/summary`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ video_id:videoId }) }); const data = await res.json(); if (!res.ok) throw new Error(data.detail); setSummary(data.summary) }
+    try { const res = await apiFetch(`${API}/summary`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ video_id:videoId }) }); const data = await res.json(); if (!res.ok) throw new Error(data.detail); setSummary(data.summary) }
     catch(err) { setSummary(`❌ Error: ${err.message}`) }
     finally { setSummaryLoading(false) }
   }
@@ -286,7 +309,7 @@ function App() {
   const handleTimestampQuery = async () => {
     if (!tsInput.trim() || !videoId || tsLoading) return
     setTsLoading(true); setTsResult(null)
-    try { const res = await fetch(`${API}/timestamp-query`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ video_id:videoId, timestamp:tsInput.trim() }) }); const data = await res.json(); if (!res.ok) throw new Error(data.detail); setTsResult(data) }
+    try { const res = await apiFetch(`${API}/timestamp-query`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ video_id:videoId, timestamp:tsInput.trim() }) }); const data = await res.json(); if (!res.ok) throw new Error(data.detail); setTsResult(data) }
     catch(err) { setTsResult({ error:err.message }) }
     finally { setTsLoading(false) }
   }
@@ -294,59 +317,72 @@ function App() {
   const handleNotes = useCallback(async () => {
     if (!videoId || notesLoading) return
     setNotesLoading(true); setNotes('')
-    try { const res = await fetch(`${API}/generate-notes`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ video_id:videoId }) }); const data = await res.json(); if (!res.ok) throw new Error(data.detail); setNotes(data.notes) }
+    try { const res = await apiFetch(`${API}/generate-notes`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ video_id:videoId }) }); const data = await res.json(); if (!res.ok) throw new Error(data.detail); setNotes(data.notes) }
     catch(err) { setNotes(`❌ Error: ${err.message}`) }
     finally { setNotesLoading(false) }
-  }, [videoId, notesLoading])
+  }, [apiFetch, videoId, notesLoading])
 
   const handleMCQs = useCallback(async () => {
     if (!videoId || mcqLoading) return
     setMcqLoading(true); setMcqs([]); setSelectedAnswers({})
-    try { const res = await fetch(`${API}/generate-mcqs`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ video_id:videoId, count:5 }) }); const data = await res.json(); if (!res.ok) throw new Error(data.detail); setMcqs(data.mcqs || []) }
+    try { const res = await apiFetch(`${API}/generate-mcqs`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ video_id:videoId, count:5 }) }); const data = await res.json(); if (!res.ok) throw new Error(data.detail); setMcqs(data.mcqs || []) }
     catch(err) { setMcqs([{ question:`❌ Error: ${err.message}`, options:[], answer:'', explanation:'', timestamp:'' }]) }
     finally { setMcqLoading(false) }
-  }, [videoId, mcqLoading])
+  }, [apiFetch, videoId, mcqLoading])
 
   const handleSelectAnswer = (qi, letter, q) => {
     setSelectedAnswers(prev => ({ ...prev, [qi]:letter }))
     const isCorrect = letter === q.answer
-    fetch(`${API}/analytics/log-mcq`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ video_id:videoId, question:q.question, selected:letter, correct_answer:q.answer, is_correct:isCorrect, topic_hint:q.explanation }) }).catch(console.error)
+    apiFetch(`${API}/analytics/log-mcq`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ video_id:videoId, question:q.question, selected:letter, correct_answer:q.answer, is_correct:isCorrect, topic_hint:q.explanation }) }).catch(console.error)
   }
 
   const handleMnemonics = useCallback(async () => {
     if (!videoId || mnemonicsLoading) return
     setMnemonicsLoading(true); setMnemonics('')
-    try { const res = await fetch(`${API}/extract-mnemonics`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ video_id:videoId }) }); const data = await res.json(); if (!res.ok) throw new Error(data.detail); setMnemonics(data.mnemonics) }
+    try { const res = await apiFetch(`${API}/extract-mnemonics`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ video_id:videoId }) }); const data = await res.json(); if (!res.ok) throw new Error(data.detail); setMnemonics(data.mnemonics) }
     catch(err) { setMnemonics(`❌ Error: ${err.message}`) }
     finally { setMnemonicsLoading(false) }
-  }, [videoId, mnemonicsLoading])
+  }, [apiFetch, videoId, mnemonicsLoading])
 
   const handleInterview = useCallback(async () => {
     if (!videoId || interviewLoading) return
     setInterviewLoading(true); setInterview('')
-    try { const res = await fetch(`${API}/generate-interview-questions`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ video_id:videoId }) }); const data = await res.json(); if (!res.ok) throw new Error(data.detail); setInterview(data.questions) }
+    try { const res = await apiFetch(`${API}/generate-interview-questions`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ video_id:videoId }) }); const data = await res.json(); if (!res.ok) throw new Error(data.detail); setInterview(data.questions) }
     catch(err) { setInterview(`❌ Error: ${err.message}`) }
     finally { setInterviewLoading(false) }
-  }, [videoId, interviewLoading])
+  }, [apiFetch, videoId, interviewLoading])
 
   const handleFetchVisuals = async () => {
     setVisualsLoading(true)
-    try { const res = await fetch(`${API}/visual-context/${videoId}`); const data = await res.json(); if (data.visual_chunks) setVisualChunks(data.visual_chunks) }
-    catch { } finally { setVisualsLoading(false) }
+    setVisualError('')
+    try {
+      const res = await apiFetch(`${API}/visual-context/${videoId}`)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.detail || 'Failed to load visual insights')
+      if (data.visual_chunks) setVisualChunks(data.visual_chunks)
+    } catch(err) { setVisualError(err.message) }
+    finally { setVisualsLoading(false) }
   }
   const handleExtractVisuals = async () => {
     setVisualsLoading(true)
-    try { const res = await fetch(`${API}/extract-visuals`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ video_id:videoId }) }); const data = await res.json(); setVisualChunks(data.visual_chunks || []) }
-    catch { } finally { setVisualsLoading(false) }
+    setVisualError('')
+    try {
+      const res = await apiFetch(`${API}/extract-visuals`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ video_id:videoId }) })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.detail || 'Visual extraction failed')
+      if (data.status === 'failed') throw new Error(data.error || 'Visual extraction failed')
+      setVisualChunks(data.visual_chunks || [])
+    } catch(err) { setVisualError(err.message) }
+    finally { setVisualsLoading(false) }
   }
   const handleFetchAnalytics = async () => {
     setAnalyticsLoading(true)
-    try { const [dr,pr] = await Promise.all([fetch(`${API}/analytics/dashboard`), fetch(`${API}/analytics/profile`)]); setDashboard(await dr.json()); setProfile(await pr.json()) }
+    try { const [dr,pr] = await Promise.all([apiFetch(`${API}/analytics/dashboard`), apiFetch(`${API}/analytics/profile`)]); setDashboard(await dr.json()); setProfile(await pr.json()) }
     catch { } finally { setAnalyticsLoading(false) }
   }
   const handleFetchGraph = async () => {
     setGraphLoading(true)
-    try { const res = await fetch(`${API}/knowledge-graph`); setGraphData(await res.json()) }
+    try { const res = await apiFetch(`${API}/knowledge-graph`); setGraphData(await res.json()) }
     catch { } finally { setGraphLoading(false) }
   }
 
@@ -382,6 +418,7 @@ function App() {
      RENDER
      ──────────────────────────────────────────────────────── */
   return (
+    <>
     <div className="vg-root">
 
       {/* ══ SIDEBAR ══════════════════════════════════════════ */}
@@ -444,6 +481,9 @@ function App() {
             </div>
             <span className="vg-chevron">⌄</span>
           </div>
+          <button className="vg-key-btn vg-key-btn-sidebar" onClick={openKeySettings}>
+            {geminiApiKey ? '🔑 Gemini key added' : '🔑 Add Gemini API key'}
+          </button>
 
         </div>
       </aside>
@@ -809,6 +849,7 @@ function App() {
                 <p className="vg-tab-sub">Gemini Vision extracts text from slides and whiteboards</p>
                 <button className="vg-action-btn" onClick={handleExtractVisuals} disabled={visualsLoading} style={{width:'fit-content'}}>{visualsLoading?<><span className="vg-spin"/>Extracting...</>:'🔍 Run Visual Extraction'}</button>
                 {visualsLoading && <div className="vg-loading-msg">Processing frames with Gemini Vision...</div>}
+                {visualError && <div className="vg-err-msg">❌ {visualError}</div>}
                 {!visualsLoading && visualChunks.length>0 && <div className="vg-visuals-grid">{visualChunks.map((c,i)=><div key={i} className="vg-visual-card"><div className="vg-vis-ts">🕐 {c.timestamp}</div><MarkdownText text={c.analysis}/></div>)}</div>}
               </div>
             )}
@@ -855,7 +896,38 @@ function App() {
         )}
 
       </div>{/* end main */}
-    </div>/* end root */
+    </div>{/* end root */}
+
+    {keySettingsOpen && (
+      <div className="vg-modal-backdrop" onMouseDown={e => e.target === e.currentTarget && setKeySettingsOpen(false)}>
+        <section className="vg-key-modal" role="dialog" aria-modal="true" aria-labelledby="vg-key-title">
+          <button className="vg-modal-close" onClick={() => setKeySettingsOpen(false)} aria-label="Close">×</button>
+          <div className="vg-key-modal-icon">🔐</div>
+          <h2 id="vg-key-title">Use your Gemini API key</h2>
+          <p>AI features use your Gemini account and its usage limits. Your key stays in this page’s memory and is sent to this app’s backend for AI requests. The backend uses it with Google Gemini and does not save it.</p>
+          <form onSubmit={e => { e.preventDefault(); setGeminiApiKey(geminiKeyDraft.trim()); setKeySettingsOpen(false) }}>
+            <label className="vg-key-label" htmlFor="vg-gemini-key">Gemini API key</label>
+            <input
+              id="vg-gemini-key"
+              className="vg-key-input"
+              type="password"
+              autoComplete="off"
+              spellCheck="false"
+              placeholder="Paste your Gemini API key"
+              value={geminiKeyDraft}
+              onChange={e => setGeminiKeyDraft(e.target.value)}
+              autoFocus
+            />
+            <div className="vg-key-actions">
+              <button className="vg-key-save" type="submit" disabled={!geminiKeyDraft.trim()}>Save for this session</button>
+              {geminiApiKey && <button className="vg-key-remove" type="button" onClick={() => { setGeminiApiKey(''); setGeminiKeyDraft(''); setKeySettingsOpen(false) }}>Remove key</button>}
+            </div>
+          </form>
+          <a className="vg-key-help" href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer">Get a Gemini API key from Google AI Studio ↗</a>
+        </section>
+      </div>
+    )}
+    </>
   )
 }
 
