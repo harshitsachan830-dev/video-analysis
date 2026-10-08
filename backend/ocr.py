@@ -25,11 +25,11 @@ except ImportError:
 
 from google.genai import types
 from dotenv import load_dotenv
-from gemini import get_gemini_client
+from gemini import GEMINI_MODEL, get_gemini_client
 
 load_dotenv()
 
-MODEL  = "gemini-2.5-flash"
+MODEL  = GEMINI_MODEL
 
 # ─────────────────────────────────────────
 # CONFIG

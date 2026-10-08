@@ -4,6 +4,8 @@ from dataclasses import dataclass
 
 from google import genai
 
+GEMINI_MODEL = "gemini-3.8-flash"
+
 
 @dataclass
 class GeminiRequestContext:
